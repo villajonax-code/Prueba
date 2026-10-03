@@ -1,0 +1,55 @@
+name: Build AURA Music (mi interfaz original)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Descomprimir el proyecto
+        run: |
+          set -e
+          Z=$(ls *.zip | head -n1)
+          echo "Usando: $Z"
+          unzip -q "$Z" -d _src
+          S=$(find _src -type f -path '*/android/settings.gradle' | head -n1)
+          test -n "$S"
+          echo "ANDROID_DIR=$(dirname "$S")" >> "$GITHUB_ENV"
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Gradle 8.7
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Compilar APK
+        run: |
+          cd "$ANDROID_DIR"
+          gradle :app:assembleDebug --no-daemon --stacktrace
+
+      - name: Copiar APK
+        run: |
+          f=$(find "$ANDROID_DIR/app/build/outputs/apk" -name '*.apk' | head -n1)
+          test -n "$f"
+          cp "$f" AURA-Music.apk
+          ls -lh AURA-Music.apk
+
+      - name: Subir APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AURA-Music
+          path: AURA-Music.apk
+
